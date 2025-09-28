@@ -14,7 +14,7 @@ if "session_id" not in st.session_state:
 
 # Input for initial project specification
 spec = st.text_area("Enter your project specification", "Build a Python CLI for weather forecasting with email alerts")
-github_repo = st.text_input("GitHub repo (e.g., username/repo)", "MAvRK7/macc-project")
+github_repo = st.text_input("GitHub repo (e.g., username/repo)", "MAvRK7/repo-name")
 
 if st.button("Generate Project"):
     response = requests.post(f"{BASE_URL}/generate-project", json={"spec": spec, "github_repo": github_repo})
