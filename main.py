@@ -95,11 +95,11 @@ code_exec_tool = CodeExecTool()
 # Language Model (OpenRouter + Grok)
 try:
     llm = ChatOpenAI(
-        model="x-ai/grok-4-fast:free",
+        model="openrouter/x-ai/grok-4-fast:free",
         base_url="https://openrouter.ai/api/v1",
         api_key=OPENROUTER_API_KEY,
         default_headers={
-            "HTTP-Referer": "http://localhost:8501",
+            "HTTP-Referer": "https://macc-project.streamlit.app",
             "X-Title": "MACC Project"
         }
     )
