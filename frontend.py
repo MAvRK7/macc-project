@@ -15,7 +15,7 @@ spec = st.text_area("Enter your project specification", "Build a Python CLI for 
 github_repo = st.text_input("GitHub repo (e.g., username/repo)", "MAvRK7/macc-project")
 
 if st.button("Generate Project"):
-    response = requests.post("https://macc-project-1.onrender.com/generate-project", json={"spec": spec, "github_repo": github_repo})
+    response = requests.post("http://localhost:8000/generate-project", json={"spec": spec, "github_repo": github_repo})
     if response.status_code == 200:
         result = response.json()["result"]
         st.session_state.session_id = result["session_id"]
@@ -35,7 +35,7 @@ if st.session_state.session_id:
     suggestion = st.text_area("Suggest changes to the generated code", "")
     if st.button("Submit Suggestion"):
         response = requests.post(
-            "https://macc-project-1.onrender.com/suggest-changes",
+            "http://localhost:8000/suggest-changes",
             json={"session_id": st.session_state.session_id, "suggestion": suggestion}
         )
         if response.status_code == 200:
