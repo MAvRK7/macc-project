@@ -1,7 +1,7 @@
 fastapi==0.115.0
 uvicorn==0.30.6
 streamlit==1.39.0
-crewai==0.201.1
+crewai==0.60.0
 crewai_tools==0.8.3
 langchain-openai==0.1.25
 embedchain==0.1.114
@@ -11,3 +11,4 @@ python-dotenv==1.0.1
 pylint==3.3.1
 setuptools==75.1.0
 pydantic==2.7.4
+python==3.12
