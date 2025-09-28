@@ -11,4 +11,5 @@ python-dotenv==1.0.1
 pylint==3.3.1
 setuptools==75.1.0
 pydantic==2.7.4
-
+click==8.1.7
+litellm==1.48.0
