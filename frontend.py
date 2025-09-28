@@ -3,6 +3,8 @@ import requests
 
 st.title("MACC - Multi-Agent AI Code Collaborator")
 
+BASE_URL = st.secrets["api"]["BASE_URL"]
+
 # Initialize session state
 if "session_id" not in st.session_state:
     st.session_state.session_id = None
@@ -15,7 +17,7 @@ spec = st.text_area("Enter your project specification", "Build a Python CLI for 
 github_repo = st.text_input("GitHub repo (e.g., username/repo)", "MAvRK7/macc-project")
 
 if st.button("Generate Project"):
-    response = requests.post("http://localhost:8000/generate-project", json={"spec": spec, "github_repo": github_repo})
+    response = requests.post(f"{BASE_URL}/generate-project", json={"spec": spec, "github_repo": github_repo})
     if response.status_code == 200:
         result = response.json()["result"]
         st.session_state.session_id = result["session_id"]
@@ -28,14 +30,17 @@ if st.button("Generate Project"):
         st.code(st.session_state.code, language="python")
         st.write(f"[View on GitHub]({st.session_state.repo_url})")
     else:
-        st.error(f"Error: {response.json()['detail']}")
+        try:
+            st.error(f"Error: {response.json().get('detail', response.text)}")
+        except Exception:
+            st.error("Error contacting backend service.")
 
 # Input for suggestions
 if st.session_state.session_id:
     suggestion = st.text_area("Suggest changes to the generated code", "")
     if st.button("Submit Suggestion"):
         response = requests.post(
-            "http://localhost:8000/suggest-changes",
+            f"{BASE_URL}/suggest-changes",
             json={"session_id": st.session_state.session_id, "suggestion": suggestion}
         )
         if response.status_code == 200:
@@ -49,4 +54,7 @@ if st.session_state.session_id:
             st.code(st.session_state.code, language="python")
             st.write(f"[View on GitHub]({st.session_state.repo_url})")
         else:
-            st.error(f"Error: {response.json()['detail']}")
+            try:
+                st.error(f"Error: {response.json().get('detail', response.text)}")
+            except Exception:
+                st.error("Error contacting backend service.")
