@@ -1,101 +1,115 @@
 import streamlit as st
 import requests
 import time
-import uuid
 import re
 
-BASE_URL = "https://macc-project.onrender.com"
+# -------------------------------
+# Load BASE_URL from secrets
+# -------------------------------
+try:
+    BASE_URL = st.secrets["api"]["BASE_URL"]
+except Exception:
+    st.error("❌ BASE_URL not found in Streamlit secrets. Please configure [.streamlit/secrets.toml].")
+    st.stop()
 
-st.set_page_config(page_title="🤖 MACC – Multi-Agent Code Collaborator", layout="wide")
+# -------------------------------
+# Utility: generate repo name
+# -------------------------------
+def generate_repo_name(prompt: str) -> str:
+    """Generate a clean repo name from the prompt text."""
+    text = prompt.strip().lower()
+    text = re.sub(r"[^a-z0-9]+", "-", text)
+    return text[:30]  # truncate for safety
 
-# ---------------- Utility Functions ----------------
-def slugify(text: str) -> str:
-    """Turn spec text into a GitHub-friendly repo name."""
-    text = re.sub(r"[^a-zA-Z0-9]+", "-", text.lower()).strip("-")
-    return text[:40]  # keep it short enough for repo names
-
+# -------------------------------
+# Polling function
+# -------------------------------
 def poll_updates(session_id: str):
-    """Poll backend for project updates."""
-    status_box = st.empty()
-    code_area = st.text_area("Code Output", value=st.session_state.code, height=360, key="code_output_area")
-    log_box = st.empty()
+    placeholder = st.empty()  # container for dynamic updates
 
-    try:
-        with requests.post(
-            f"{BASE_URL}/generate-project-stream",
-            json={"spec": st.session_state.spec, "github_repo": st.session_state.github_repo},
-            stream=True,
-            timeout=90
-        ) as resp:
+    while True:
+        try:
+            resp = requests.get(f"{BASE_URL}/status/{session_id}", timeout=10)
             resp.raise_for_status()
-            for line in resp.iter_lines():
-                if not line:
-                    continue
-                msg = line.decode("utf-8")
-                if '"type": "status"' in msg:
-                    status = msg.split('"message": "')[1].split('"')[0]
-                    with status_box:
-                        st.write(f"📢 {status}")
-                elif '"type": "code"' in msg:
-                    code_line = msg.split('"message": "')[1].split('"')[0]
-                    st.session_state.code += code_line + "\n"
-                    code_area = st.text_area("Code Output", value=st.session_state.code, height=360, key="code_output_area")
-                else:
-                    with log_box:
-                        st.write(msg)
-    except Exception as e:
-        st.error(f"❌ Error while streaming: {e}")
+            data = resp.json()
 
-# ---------------- Session State ----------------
+            with placeholder.container():
+                st.write("### Status log:")
+                for i, msg in enumerate(data.get("status", [])):
+                    st.write(f"📢 {msg}")
+
+                repo_url = data.get("repo_url")
+                if repo_url:
+                    st.success(f"Repository URL: {repo_url}")
+
+                code = data.get("code", "")
+                if code:
+                    st.text_area(
+                        "Code Output",
+                        value=code,
+                        height=360,
+                        key=f"code_output_{session_id}",  # unique key per session
+                    )
+
+            if data.get("done"):
+                break
+
+        except Exception as e:
+            st.error(f"❌ Error fetching updates: {e}")
+            break
+
+        time.sleep(2)
+
+# -------------------------------
+# Streamlit UI
+# -------------------------------
+st.set_page_config(page_title="AI Project Generator", layout="wide")
+st.title("🤖 AI Project Generator")
+
+# Session state init
+if "session_id" not in st.session_state:
+    st.session_state.session_id = None
 if "code" not in st.session_state:
     st.session_state.code = ""
-if "spec" not in st.session_state:
-    st.session_state.spec = "Build a Python CLI for weather forecasting with email alerts"
-if "github_repo" not in st.session_state:
-    st.session_state.github_repo = ""
 
-# ---------------- UI Layout ----------------
-st.title("🤖 MACC – Multi-Agent Code Collaborator")
-st.markdown("Generate, review, and refine Python projects with AI agents.")
+# Prompt input (default value, editable)
+default_prompt = "Build a Python CLI for weather forecasting with email alerts"
+prompt = st.text_area(
+    "Enter your project idea:",
+    value=default_prompt,
+    height=100,
+    key="user_prompt",
+)
 
-with st.form("project_form"):
-    spec = st.text_area("Enter your project specification", value=st.session_state.spec, height=120)
-    github_repo = st.text_input("GitHub repo (optional, leave blank to auto-create)", value=st.session_state.github_repo)
-    submitted = st.form_submit_button("🚀 Generate Project")
-
-if submitted:
-    st.session_state.spec = spec
-    if not github_repo.strip():
-        st.session_state.github_repo = f"{slugify(spec)}-{uuid.uuid4().hex[:6]}"
+# Start button
+if st.button("🚀 Generate Project"):
+    if not prompt.strip():
+        st.warning("⚠️ Please enter a project prompt first.")
     else:
-        st.session_state.github_repo = github_repo
-    st.session_state.code = ""  # reset code
-    sid = str(uuid.uuid4())
-    st.session_state.session_id = sid
-    st.write(f"**Session id:** {sid}")
-    poll_updates(sid)
+        repo_name = generate_repo_name(prompt)
+        st.write(f"Auto-generated repo name: **{repo_name}**")
 
-# ---------------- Suggestion Box ----------------
-if "session_id" in st.session_state:
-    suggestion = st.text_input("💡 Suggest a refinement")
-    if st.button("Apply Suggestion"):
         try:
-            with requests.post(
-                f"{BASE_URL}/suggest-changes-stream",
-                json={"session_id": st.session_state.session_id, "suggestion": suggestion},
-                stream=True,
-                timeout=90
-            ) as resp:
-                resp.raise_for_status()
-                for line in resp.iter_lines():
-                    if not line:
-                        continue
-                    msg = line.decode("utf-8")
-                    if '"type": "status"' in msg:
-                        st.write(f"📢 {msg}")
-                    elif '"type": "code"' in msg:
-                        code_line = msg.split('"message": "')[1].split('"')[0]
-                        st.session_state.code += code_line + "\n"
-                        st.text_area("Code Output", value=st.session_state.code, height=360, key="code_output_area")
+            resp = requests.post(
+                f"{BASE_URL}/generate-project",
+                json={"prompt": prompt, "repo_name": repo_name},
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            sid = data.get("session_id")
+
+            if not sid:
+                st.error("❌ No session ID received from backend.")
+            else:
+                st.session_state.session_id = sid
+                st.write(f"### Session\nSession id: `{sid}`")
+                st.info("Starting project generation...")
+                poll_updates(sid)
+
         except Exception as e:
-            st.error(f"❌ Error during refinement: {e}")
+            st.error(f"❌ Error starting project: {e}")
+
+# If session already exists, resume polling
+if st.session_state.session_id:
+    st.write(f"### Current Session\nSession id: `{st.session_state.session_id}`")
