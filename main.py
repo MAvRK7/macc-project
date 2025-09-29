@@ -6,9 +6,12 @@ import requests
 import subprocess
 import uuid
 import re
+import json
+import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
@@ -59,6 +62,15 @@ async def root():
 # Project context storage (in-memory)
 project_context = {}
 
+# In-memory queue per session for status updates
+session_queues = {}
+
+def enqueue_status(session_id, msg):
+    if session_id not in session_queues:
+        session_queues[session_id] = asyncio.Queue()
+    session_queues[session_id].put_nowait(msg)
+
+# Request models
 class ProjectRequest(BaseModel):
     spec: str
     github_repo: str = None  # Optional
@@ -154,7 +166,82 @@ def validate_inputs(spec: str):
     if not spec or len(spec.strip()) < 3:
         raise ValueError("Project specification must be at least 3 characters long")
 
-# Main MACC Workflow
+# Stream generator for project generation with status updates
+async def stream_generator(session_id, spec, github_repo):
+    try:
+        # Step 0: validate inputs
+        enqueue_status(session_id, "Starting project generation...")
+        validate_inputs(spec)
+        enqueue_status(session_id, "Validation completed!")
+
+        # Step 1: auto-generate GitHub repo if not provided
+        g = Github(GITHUB_TOKEN)
+        user = g.get_user()
+        if not github_repo or github_repo.strip() == "":
+            github_repo = f"{user.login}/{uuid.uuid4().hex[:8]}-macc-project"
+            enqueue_status(session_id, f"Auto-created GitHub repo: {github_repo}")
+
+        # Step 2: Planner
+        enqueue_status(session_id, "Planner agent: breaking down tasks...")
+        plan_task = Task(
+            description=f"Break down this project spec into tasks: {spec}",
+            agent=planner,
+            expected_output="List of tasks in JSON format"
+        )
+        crew = Crew(agents=[planner], tasks=[plan_task])
+        result = crew.kickoff()
+        tasks = [task.dict() for task in result.tasks_output] if result.tasks_output else []
+        enqueue_status(session_id, "Planner agent completed tasks!")
+
+        # Step 3: Coder
+        enqueue_status(session_id, "Coder agent: generating code...")
+        code_task = Task(
+            description="Generate code for the given tasks",
+            agent=coder,
+            expected_output="Python code as a string"
+        )
+        crew = Crew(agents=[coder], tasks=[code_task])
+        result = crew.kickoff()
+        generated_code = result.raw if hasattr(result, "raw") else ""
+        enqueue_status(session_id, "Coder agent completed code generation!")
+
+        # Step 4: Reviewer
+        enqueue_status(session_id, "Reviewer agent: reviewing code...")
+        review_task = Task(
+            description="Review and improve the generated code",
+            agent=reviewer,
+            expected_output="Reviewed code and comments"
+        )
+        crew = Crew(agents=[reviewer], tasks=[review_task])
+        result = crew.kickoff()
+        refined_code = result.raw if hasattr(result, "raw") else ""
+        enqueue_status(session_id, "Reviewer agent completed review!")
+
+        # Step 5: Push to GitHub
+        github_url = github_tool.push_to_repo(github_repo, refined_code, "main.py")
+        enqueue_status(session_id, f"Code committed to GitHub: {github_url}")
+
+        # Step 6: Store context
+        project_context[session_id] = {
+            "spec": spec,
+            "github_repo": github_repo,
+            "tasks": tasks,
+            "code": refined_code,
+            "repo_url": github_url
+        }
+        enqueue_status(session_id, "Project generation completed!")
+
+        # Yield all messages in queue
+        q = session_queues[session_id]
+        while not q.empty():
+            msg = await q.get()
+            yield json.dumps({"status": msg}) + "\n"
+            await asyncio.sleep(0.1)
+
+    except Exception as e:
+        yield json.dumps({"error": str(e)}) + "\n"
+
+# Non-streaming version (if needed)
 def run_macc_agents(spec, github_repo, session_id, status_callback=None):
     validate_inputs(spec)
 
@@ -265,6 +352,14 @@ async def generate_project(request: ProjectRequest):
     except Exception as e:
         logging.error(f"Error in generate_project: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-project-stream")
+async def generate_project_stream(request: ProjectRequest):
+    session_id = str(uuid.uuid4())
+    return StreamingResponse(
+        stream_generator(session_id, request.spec, request.github_repo),
+        media_type="application/json",
+    )
 
 @app.post("/suggest-changes")
 async def suggest_changes(request: SuggestionRequest):
