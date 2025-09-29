@@ -8,6 +8,7 @@ import uuid
 import re
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
@@ -40,6 +41,15 @@ if not GITHUB_TOKEN:
 
 # FastAPI setup
 app = FastAPI(title="MACC - Multi-Agent AI Code Collaborator")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://macc-project.streamlit.app", "http://localhost:8501"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Root endpoint
 @app.get("/")
