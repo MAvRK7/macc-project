@@ -1,47 +1,25 @@
 import os
-import warnings
 import asyncio
-import logging
-import requests
-import subprocess
 import uuid
-import re
-import json
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
+from github import Github
+import json
 from crewai import Agent, Task, Crew
 from langchain_openai import ChatOpenAI
-from github import Github
 from crewai_tools import BaseTool
 
-# ---------------- Logging & Environment ----------------
-logging.basicConfig(filename="agent_logs.txt", level=logging.INFO)
-logging.info("Starting MACC application")
-
-os.environ["PYDANTIC_SKIP_VALIDATING_ASSIGNMENT"] = "1"
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-try:
-    loop = asyncio.get_event_loop()
-except RuntimeError:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-load_dotenv()
+# ---------------- Environment ----------------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
-if not OPENROUTER_API_KEY:
-    raise ValueError("OPENROUTER_API_KEY not found in .env")
-if not GITHUB_TOKEN:
-    raise ValueError("GITHUB_TOKEN not found in .env")
+if not OPENROUTER_API_KEY or not GITHUB_TOKEN:
+    raise ValueError("OPENROUTER_API_KEY and GITHUB_TOKEN are required")
 
-# ---------------- FastAPI Setup ----------------
-app = FastAPI(title="MACC - Multi-Agent AI Code Collaborator")
-
+# ---------------- FastAPI ----------------
+app = FastAPI(title="MACC API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,24 +28,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Root endpoint
-@app.get("/")
-async def root():
-    return {"message": "MACC API running - all good"}
+# ---------------- Session queues ----------------
+session_queues = {}
+project_context = {}
 
-# ---------------- Project Context & Queues ----------------
-project_context: dict[str, dict] = {}
-session_queues: dict[str, asyncio.Queue] = {}
-
-def enqueue_status(session_id: str, msg: str, type: str = "status"):
+def enqueue(session_id, msg, type="status"):
     if session_id not in session_queues:
         session_queues[session_id] = asyncio.Queue()
     session_queues[session_id].put_nowait({"type": type, "message": msg})
 
+async def stream_queue(session_id: str):
+    q = session_queues.get(session_id)
+    if not q:
+        yield json.dumps({"type":"status","message":"No updates for this session"}) + "\n"
+        return
+    while True:
+        msg = await q.get()
+        yield json.dumps(msg) + "\n"
+        await asyncio.sleep(0.05)
+
 # ---------------- Models ----------------
 class ProjectRequest(BaseModel):
     spec: str
-    github_repo: str = ""  # optional
+    github_repo: str = ""
 
 class SuggestionRequest(BaseModel):
     session_id: str
@@ -76,172 +59,129 @@ class SuggestionRequest(BaseModel):
 # ---------------- Tools ----------------
 class GitHubTool(BaseTool):
     name: str = "GitHubTool"
-    description: str = "Push code to a GitHub repository"
+    description: str = "Push code to GitHub"
 
-    def _run(self, repo_name: str, code: str, filename: str) -> str:
+    def push(self, repo_name: str, code: str, filename: str, readme: str = None):
         g = Github(GITHUB_TOKEN)
         user = g.get_user()
+        repo_short_name = repo_name.split("/")[-1]
         try:
-            repo = user.get_repo(repo_name.split("/")[-1])
+            repo = user.get_repo(repo_short_name)
         except:
-            repo = user.create_repo(repo_name.split("/")[-1], auto_init=True)
-        repo.create_file(filename, "Initial commit", code)
+            repo = user.create_repo(repo_short_name, auto_init=True)
+        repo.create_file(filename, "Add main code", code)
+        if readme:
+            try:
+                repo.create_file("README.md", "Add README", readme)
+            except:
+                pass
         return f"https://github.com/{repo_name}/blob/main/{filename}"
 
-    def push_to_repo(self, repo_name: str, code: str, filename: str) -> str:
-        return self._run(repo_name, code, filename)
-
-class WebSearchTool(BaseTool):
-    name: str = "WebSearchTool"
-    description: str = "Search the web for best practices or references"
-
-    def _run(self, query: str) -> str:
-        response = requests.get(f"https://api.duckduckgo.com/?q={query}&format=json")
-        return response.json().get("Abstract", "No results found")
-
-class CodeExecTool(BaseTool):
-    name: str = "CodeExecTool"
-    description: str = "Execute Python code and return output"
-
-    def _run(self, code: str) -> str:
-        with open("temp.py", "w") as f:
-            f.write(code)
-        result = subprocess.run(["python", "temp.py"], capture_output=True, text=True)
-        return result.stdout or result.stderr
-
 github_tool = GitHubTool()
-web_search_tool = WebSearchTool()
-code_exec_tool = CodeExecTool()
 
 # ---------------- LLM & Agents ----------------
 llm = ChatOpenAI(
     model="openrouter/x-ai/grok-4-fast:free",
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
-    default_headers={
-        "HTTP-Referer": "https://macc-project.streamlit.app",
-        "X-Title": "MACC Project"
-    }
 )
 
-planner = Agent(
-    role="Planner",
-    goal="Break down project spec into tasks",
-    backstory="Expert in project management and task decomposition.",
-    llm=llm,
-    tools=[web_search_tool]
-)
-coder = Agent(
-    role="Coder",
-    goal="Generate clean, functional code",
-    backstory="Skilled programmer with expertise in Python and best practices.",
-    llm=llm,
-    tools=[code_exec_tool]
-)
-reviewer = Agent(
-    role="Reviewer",
-    goal="Ensure code quality and security, and incorporate user suggestions",
-    backstory="Code quality specialist with deep knowledge of linting, security, and iterative refinement.",
-    llm=llm,
-    tools=[code_exec_tool]
-)
+planner = Agent(role="Planner", goal="Break down project spec into tasks", backstory="Expert project planner", llm=llm)
+coder = Agent(role="Coder", goal="Generate code", backstory="Expert Python programmer", llm=llm)
+reviewer = Agent(role="Reviewer", goal="Refine code and ensure quality", backstory="Code reviewer", llm=llm)
 
-# ---------------- Validation ----------------
-def validate_inputs(spec: str):
-    if not spec or len(spec.strip()) < 3:
-        raise ValueError("Project specification must be at least 3 characters long")
+# ---------------- Project generation ----------------
+async def generate_project(session_id: str, spec: str, github_repo: str):
+    enqueue(session_id, "Starting project generation...")
+    if not spec.strip():
+        enqueue(session_id, "Error: Empty project spec")
+        return
 
-# ---------------- Streaming Generation ----------------
-async def generate_project_stream(session_id: str, spec: str, github_repo: str):
-    enqueue_status(session_id, "Starting project generation...")
-    validate_inputs(spec)
-
+    # Auto-create GitHub repo name
+    import uuid
+    from github import Github
     g = Github(GITHUB_TOKEN)
     user = g.get_user()
     if not github_repo.strip():
         github_repo = f"{user.login}/{uuid.uuid4().hex[:8]}-macc-project"
-        enqueue_status(session_id, f"Auto-created GitHub repo: {github_repo}")
+        enqueue(session_id, f"Auto-created GitHub repo: {github_repo}")
 
     # Planner
-    enqueue_status(session_id, "Planner agent: breaking down tasks...")
-    plan_task = Task(description=f"Break down this project spec into tasks: {spec}", agent=planner, expected_output="List of tasks in JSON format")
+    enqueue(session_id, "Planner agent: breaking down tasks...")
+    plan_task = Task(description=f"Break down: {spec}", agent=planner, expected_output="List of tasks in JSON")
     crew = Crew(agents=[planner], tasks=[plan_task])
     result = crew.kickoff()
-    tasks = [task.dict() for task in result.tasks_output] if result.tasks_output else []
-    enqueue_status(session_id, "Planner agent completed tasks!")
+    tasks = [t.dict() for t in result.tasks_output] if result.tasks_output else []
+    enqueue(session_id, "Planner agent completed tasks!")
 
     # Coder
-    enqueue_status(session_id, "Coder agent: generating code...")
-    code_task = Task(description="Generate code for the given tasks", agent=coder, expected_output="Python code as a string")
+    enqueue(session_id, "Coder agent: generating code...")
+    code_task = Task(description=f"Generate code for spec: {spec}", agent=coder, expected_output="Python code")
     crew = Crew(agents=[coder], tasks=[code_task])
     result = crew.kickoff()
-    generated_code = result.raw if hasattr(result, "raw") else ""
-    for line in generated_code.split("\n"):
-        enqueue_status(session_id, line, type="code")
-        await asyncio.sleep(0.05)
-    enqueue_status(session_id, "Coder agent completed code generation!")
+    code = result.raw if hasattr(result, "raw") else ""
+    for line in code.split("\n"):
+        enqueue(session_id, line, type="code")
+        await asyncio.sleep(0.02)
+    enqueue(session_id, "Coder agent completed code!")
 
     # Reviewer
-    enqueue_status(session_id, "Reviewer agent: reviewing code...")
-    review_task = Task(description="Review and improve the generated code", agent=reviewer, expected_output="Refined code and comments")
+    enqueue(session_id, "Reviewer agent: refining code...")
+    review_task = Task(description=f"Refine code:\n{code}", agent=reviewer, expected_output="Refined code")
     crew = Crew(agents=[reviewer], tasks=[review_task])
     result = crew.kickoff()
     refined_code = result.raw if hasattr(result, "raw") else ""
-    enqueue_status(session_id, "Reviewer agent completed review!")
+    enqueue(session_id, "Reviewer agent completed review!")
 
-    # Push to GitHub
-    github_url = github_tool.push_to_repo(github_repo, refined_code, "main.py")
-    enqueue_status(session_id, f"Code committed to GitHub: {github_url}")
+    # README / description
+    readme_text = f"# Project Description\n\n{spec}\n\nGenerated by MACC AI."
 
-    # Store context
-    project_context[session_id] = {"spec": spec, "github_repo": github_repo, "tasks": tasks, "code": refined_code, "repo_url": github_url}
-    enqueue_status(session_id, "Project generation completed!")
+    project_context[session_id] = {
+        "spec": spec,
+        "github_repo": github_repo,
+        "tasks": tasks,
+        "code": refined_code,
+        "readme": readme_text,
+        "repo_url": None
+    }
 
-    # Stream messages
-    q = session_queues[session_id]
-    while not q.empty():
-        msg = await q.get()
-        yield json.dumps(msg) + "\n"
-        await asyncio.sleep(0.05)
+    enqueue(session_id, "Project generation completed! Ready to commit when confirmed.")
 
-# ---------------- Suggestion / Refinement ----------------
-async def refine_project_stream(session_id: str, suggestion: str):
+async def refine_project(session_id: str, suggestion: str):
     if session_id not in project_context:
-        enqueue_status(session_id, "Session ID not found.")
+        enqueue(session_id, "Error: Session not found")
         return
     context = project_context[session_id]
-    current_code = context["code"]
-    github_repo = context["github_repo"]
-
-    enqueue_status(session_id, f"Applying suggestion: {suggestion}")
-    refine_task = Task(description=f"Refine code based on: {suggestion}\nCurrent code:\n{current_code}", agent=reviewer, expected_output="Refined code")
+    code = context["code"]
+    enqueue(session_id, f"Applying suggestion: {suggestion}")
+    refine_task = Task(description=f"Refine code:\n{code}\nBased on suggestion: {suggestion}", agent=reviewer, expected_output="Refined code")
     crew = Crew(agents=[reviewer], tasks=[refine_task])
     result = crew.kickoff()
     refined_code = result.raw if hasattr(result, "raw") else ""
-    for line in refined_code.split("\n"):
-        enqueue_status(session_id, line, type="code")
-        await asyncio.sleep(0.05)
-    enqueue_status(session_id, "Refinement complete!")
+    context["code"] = refined_code
+    enqueue(session_id, "Refinement complete!")
 
-    github_url = github_tool.push_to_repo(github_repo, refined_code, "main.py")
-    enqueue_status(session_id, f"Code updated on GitHub: {github_url}")
-
-    # Update context
-    project_context[session_id]["code"] = refined_code
-    project_context[session_id]["repo_url"] = github_url
-
-    q = session_queues[session_id]
-    while not q.empty():
-        msg = await q.get()
-        yield json.dumps(msg) + "\n"
-        await asyncio.sleep(0.05)
-
-# ---------------- FastAPI Endpoints ----------------
+# ---------------- Endpoints ----------------
 @app.post("/generate-project-stream")
 async def generate_project_endpoint(request: ProjectRequest):
     session_id = str(uuid.uuid4())
-    return StreamingResponse(generate_project_stream(session_id, request.spec, request.github_repo), media_type="text/event-stream")
+    asyncio.create_task(generate_project(session_id, request.spec, request.github_repo))
+    return StreamingResponse(stream_queue(session_id), media_type="text/event-stream")
 
 @app.post("/suggest-changes-stream")
 async def suggest_changes_endpoint(request: SuggestionRequest):
-    return StreamingResponse(refine_project_stream(request.session_id, request.suggestion), media_type="text/event-stream")
+    asyncio.create_task(refine_project(request.session_id, request.suggestion))
+    return StreamingResponse(stream_queue(request.session_id), media_type="text/event-stream")
+
+@app.post("/commit")
+async def commit_code(session_id: str):
+    if session_id not in project_context:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    ctx = project_context[session_id]
+    url = github_tool.push(ctx["github_repo"], ctx["code"], "main.py", ctx["readme"])
+    ctx["repo_url"] = url
+    return {"message": "Code committed!", "repo_url": url}
+
+@app.get("/")
+async def root():
+    return {"message": "MACC API running"}
