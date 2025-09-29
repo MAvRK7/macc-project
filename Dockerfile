@@ -1,20 +1,28 @@
+# Dockerfile
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install build dependencies for compiling packages like chroma-hnswlib
+# Install build dependencies + git for PyGithub
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     g++ \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy requirements
 COPY requirements.txt .
 
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
+# Copy backend code
 COPY main.py .
 
-CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Expose default port (Render sets PORT)
+EXPOSE ${PORT:-8080}
 
+# Command to run FastAPI app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
