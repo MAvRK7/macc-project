@@ -1,137 +1,88 @@
 import streamlit as st
 import requests
+import json
 import uuid
+import time
 
-# ------------------ Config ------------------
-BASE_URL = st.secrets["api"]["BASE_URL"]
+# ----------------------- Config -----------------------
+BASE_URL = st.secrets["api"]["BASE_URL"]  # e.g., "https://macc-project-n5v3.onrender.com"
 
-st.set_page_config(page_title="MACC - Multi-Agent Code Collaborator", layout="wide")
-st.title("🤖 MACC - Multi-Agent Code Collaborator")
-
-# ------------------ Session State ------------------
-if "session_id" not in st.session_state:
-    st.session_state.session_id = None
-if "code" not in st.session_state:
-    st.session_state.code = ""
-if "repo_url" not in st.session_state:
-    st.session_state.repo_url = ""
-if "pending_commit" not in st.session_state:
-    st.session_state.pending_commit = False
-
-# ------------------ Helpers ------------------
-def generate_repo_name(spec_text):
-    base = spec_text.lower().strip().replace(" ", "-")
-    base = "".join(c for c in base if c.isalnum() or c == "-")
-    return f"{base[:50]}-{uuid.uuid4().hex[:6]}"
-
-def generate_project():
-    st.session_state.code = ""
-    st.session_state.repo_url = ""
-    st.session_state.session_id = str(uuid.uuid4())
-    st.session_state.pending_commit = False
-
-    repo_name = github_repo_input.strip() or generate_repo_name(spec)
-
-    payload = {"spec": spec, "github_repo": repo_name}
-
+# ----------------------- Helpers -----------------------
+def stream_post(url, payload):
+    """Stream updates from backend and update Streamlit UI"""
+    session_id = str(uuid.uuid4())
+    headers = {"Accept": "text/event-stream"}
     try:
-        resp = requests.post(f"{BASE_URL}/generate-project", json=payload, timeout=120)
-        if resp.status_code == 200:
-            data = resp.json()
-            st.session_state.code = data.get("code", "")
-            st.session_state.session_id = data.get("session_id", st.session_state.session_id)
-            st.session_state.repo_url = data.get("repo_url", "")
-            st.session_state.pending_commit = True
-        else:
-            st.error(f"❌ Error generating project: {resp.status_code} {resp.reason}")
-            st.text(resp.text)
-    except Exception as e:
-        st.error(f"❌ Request failed: {e}")
+        with requests.post(url, json=payload, headers=headers, stream=True, timeout=300) as response:
+            if response.status_code != 200:
+                st.error(f"❌ Error starting project: {response.status_code} {response.reason}")
+                return None, None
 
-def commit_to_github():
-    if not st.session_state.pending_commit:
-        st.warning("Nothing to commit.")
-        return
-    payload = {"session_id": st.session_state.session_id}
-    try:
-        resp = requests.post(f"{BASE_URL}/commit-project", json=payload, timeout=120)
-        if resp.status_code == 200:
-            data = resp.json()
-            st.session_state.repo_url = data.get("repo_url", st.session_state.repo_url)
-            st.success("✅ Project committed to GitHub!")
-            st.session_state.pending_commit = False
-        else:
-            st.error(f"❌ Error committing project: {resp.status_code} {resp.reason}")
-            st.text(resp.text)
-    except Exception as e:
-        st.error(f"❌ Commit request failed: {e}")
+            status_container = st.empty()
+            code_container = st.empty()
+            code_text = ""
 
-def apply_suggestion(suggestion_text):
-    if not st.session_state.session_id:
-        st.warning("Please generate a project first.")
-        return
-    if not suggestion_text.strip():
-        st.warning("Enter a suggestion first.")
-        return
+            github_url = None
 
-    payload = {
-        "session_id": st.session_state.session_id,
-        "suggestion": suggestion_text.strip()
-    }
-    try:
-        resp = requests.post(f"{BASE_URL}/suggest-changes", json=payload, timeout=120)
-        if resp.status_code == 200:
-            data = resp.json()
-            st.session_state.code = data.get("code", st.session_state.code)
-            st.session_state.repo_url = data.get("repo_url", st.session_state.repo_url)
-            st.success("✅ Suggestion applied successfully!")
-            st.session_state.pending_commit = True
-        else:
-            st.error(f"❌ Error applying suggestion: {resp.status_code} {resp.reason}")
-            st.text(resp.text)
-    except Exception as e:
-        st.error(f"❌ Request failed: {e}")
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    msg = json.loads(line)
+                    msg_type = msg.get("type")
+                    content = msg.get("message")
+                    if msg_type == "status":
+                        status_container.text(f"📢 {content}")
+                        if "Code prepared on GitHub" in content:
+                            github_url = content.split("Code prepared on GitHub:")[-1].strip()
+                    elif msg_type == "code":
+                        code_text += content + "\n"
+                        code_container.text_area("Generated Code", value=code_text, height=400, key=str(uuid.uuid4()))
+                except Exception as e:
+                    st.warning(f"Error parsing message: {e}")
+            return code_text, github_url
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Error connecting to backend: {e}")
+        return None, None
 
-# ------------------ Project Input ------------------
-st.subheader("📝 Enter Project Specification")
-spec = st.text_area(
-    "Project description or prompt",
-    value="Build a Python CLI for weather forecasting with email alerts",
-    height=120
-)
-github_repo_input = st.text_input(
-    "GitHub repo (optional, leave blank to auto-create)",
-    value=""
-)
+# ----------------------- UI -----------------------
+st.title("🛠 MACC - Multi-Agent AI Code Collaborator")
+st.write("Generate Python projects with AI agents. Enter your project specification below:")
 
-# ------------------ Generate & Commit Buttons ------------------
-col1, col2 = st.columns([1,1])
-with col1:
-    if st.button("🚀 Generate Project"):
-        if not spec.strip():
-            st.warning("Please enter a project specification.")
-        else:
-            generate_project()
+default_prompt = "Build a Python CLI for weather forecasting with email alerts"
+spec = st.text_area("Project Specification", value=default_prompt, height=80)
+github_repo = st.text_input("GitHub Repo (optional)", value="")
 
-with col2:
-    if st.button("💾 Commit to GitHub"):
-        commit_to_github()
+if st.button("Generate Project"):
+    st.session_state.generated_code = None
+    st.session_state.github_url = None
 
-# ------------------ Code Output ------------------
-if st.session_state.code:
-    st.subheader("💻 Generated Code")
-    st.code(st.session_state.code, language="python")
+    # Stream project generation
+    code_text, github_url = stream_post(f"{BASE_URL}/generate-project-stream", {"spec": spec, "github_repo": github_repo})
 
-# ------------------ GitHub Repo Link ------------------
-if st.session_state.repo_url:
-    st.subheader("📦 Repository URL")
-    st.write(f"[{st.session_state.repo_url}]({st.session_state.repo_url})")
+    if code_text:
+        st.session_state.generated_code = code_text
+    if github_url:
+        st.session_state.github_url = github_url
 
-# ------------------ User Suggestions ------------------
-if st.session_state.code:
-    st.subheader("💡 Suggest Changes / Improvements")
-    suggestion_input = st.text_area("Enter your suggestion for the generated code", height=80)
-    if st.button("Apply Suggestion"):
-        apply_suggestion(suggestion_input)
-        if st.session_state.code:
-            st.code(st.session_state.code, language="python")
+# ----------------------- Show Results -----------------------
+if st.session_state.get("generated_code"):
+    st.subheader("✅ Generated Code")
+    st.code(st.session_state.generated_code, language="python")
+
+if st.session_state.get("github_url"):
+    st.subheader("📂 GitHub Repository")
+    st.markdown(f"[Open on GitHub]({st.session_state.github_url})")
+
+# ----------------------- Suggestions -----------------------
+st.subheader("💡 Refine / Suggest Changes")
+suggestion = st.text_area("Enter your suggestion to improve the code:")
+if st.button("Apply Suggestion") and suggestion.strip():
+    if not st.session_state.get("generated_code"):
+        st.warning("Generate a project first before applying suggestions.")
+    else:
+        code_text, github_url = stream_post(f"{BASE_URL}/suggest-changes-stream", {"session_id": str(uuid.uuid4()), "suggestion": suggestion})
+        if code_text:
+            st.session_state.generated_code = code_text
+        if github_url:
+            st.session_state.github_url = github_url
