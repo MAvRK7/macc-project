@@ -20,14 +20,15 @@ spec = st.text_area(
 )
 github_repo = st.text_input(
     "GitHub repo (e.g., username/repo)",
-    "MAvRK7/macc-project"  # updated default repo here
+    "MAvRK7/macc-project"
 )
 
 if st.button("Generate Project"):
     try:
         response = requests.post(
             f"{BASE_URL}/generate-project",
-            json={"spec": spec, "github_repo": github_repo}
+            json={"spec": spec, "github_repo": github_repo},
+            timeout=60  # Increased timeout for Render spin-up
         )
         if response.status_code == 200:
             result = response.json()["result"]
@@ -44,9 +45,10 @@ if st.button("Generate Project"):
 
             st.write(f"[View on GitHub]({st.session_state.repo_url})")
         else:
-            st.error(f"Error: {response.json().get('detail', response.text)}")
-    except Exception as e:
+            st.error(f"Error: {response.status_code} - {response.json().get('detail', response.text)}")
+    except requests.exceptions.RequestException as e:
         st.error(f"Error contacting backend service: {str(e)}")
+        st.error(f"Backend URL: {BASE_URL}")
 
 # Input for suggestions
 if st.session_state.session_id:
@@ -55,7 +57,8 @@ if st.session_state.session_id:
         try:
             response = requests.post(
                 f"{BASE_URL}/suggest-changes",
-                json={"session_id": st.session_state.session_id, "suggestion": suggestion}
+                json={"session_id": st.session_state.session_id, "suggestion": suggestion},
+                timeout=60  # Increased timeout
             )
             if response.status_code == 200:
                 result = response.json()["result"]
@@ -71,6 +74,7 @@ if st.session_state.session_id:
 
                 st.write(f"[View on GitHub]({st.session_state.repo_url})")
             else:
-                st.error(f"Error: {response.json().get('detail', response.text)}")
-        except Exception as e:
+                st.error(f"Error: {response.status_code} - {response.json().get('detail', response.text)}")
+        except requests.exceptions.RequestException as e:
             st.error(f"Error contacting backend service: {str(e)}")
+            st.error(f"Backend URL: {BASE_URL}")
