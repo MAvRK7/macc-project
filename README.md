@@ -1,4 +1,4 @@
-# macc-project
+# The Multi-Agent AI Code Collaborator (MACC)
 
 ## Overview
 
