@@ -187,7 +187,17 @@ This project is licensed under the MIT License.
 
 - Powered by CrewAI and OpenRouter.
 - Deployed using Render and Streamlit Community Cloud.
-  
+
+
+## Screenshot of the frontend streamlit app
+
+Entering project sepcification
+
+<img width="1440" height="778" alt="Screenshot 2025-10-01 at 1 30 36 PM" src="https://github.com/user-attachments/assets/219a6850-daf1-4e12-b989-e0e2dcbd2fef" />
+
+Adding suggestions
+
+<img width="1440" height="778" alt="image" src="https://github.com/user-attachments/assets/34f70923-8c78-4dfc-8097-e21d7e2db5f7" />
 
     
 
