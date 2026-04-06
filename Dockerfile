@@ -1,29 +1,27 @@
-# Dockerfile
+# Dockerfile - Optimized for fast + reliable build on Render
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install build dependencies + git for PyGithub
+# Install system dependencies early (including full compiler stack)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    python3-dev \
     git \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
+# Upgrade pip and install setuptools early + force binary wheels where possible
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir "setuptools<82.0.0" wheel \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir --prefer-binary -r requirements.txt
 
-# Copy backend code
-COPY main.py .
+# Copy the app code
+COPY macc ./macc
 
-# Expose default port (Render sets PORT)
+
 EXPOSE ${PORT:-8080}
 
-# Command to run FastAPI app
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
-
+CMD ["sh", "-c", "uvicorn macc.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
