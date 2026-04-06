@@ -1,0 +1,110 @@
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 0.484700 seconds
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 0.387251 seconds
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+INFO:openai._base_client:Retrying request to /chat/completions in 0.763493 seconds
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+ERROR:crewai.telemetry.telemetry:HTTPSConnectionPool(host='telemetry.crewai.com', port=4319): Read timed out. (read timeout=30)
+ERROR:crewai.telemetry.telemetry:HTTPSConnectionPool(host='telemetry.crewai.com', port=4319): Read timed out. (read timeout=30)
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+ERROR:root:LLM call timed out
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:root:Falling back to Mistral...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+ERROR:root:LLM call timed out
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+WARNING:root:Empty or too short response from nvidia/nemotron-3-super-120b-a12b:free
+INFO:root:Falling back to Mistral...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 1 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 2 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 3 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:root:Falling back to LLM 2...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+ERROR:root:LLM 2 fallback failed: API error occurred: Status 400
+{"object":"error","message":"Invalid model: nvidia/nemotron-3-super-120b-a12b:free","type":"invalid_model","param":null,"code":"1500","raw_status_code":400}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 1 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 2 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 3 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:root:Falling back to LLM 2...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+ERROR:root:LLM 2 fallback failed: API error occurred: Status 400
+{"object":"error","message":"Invalid model: nvidia/nemotron-3-super-120b-a12b:free","type":"invalid_model","param":null,"code":"1500","raw_status_code":400}
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 1 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 2 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 3 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:root:Falling back to LLM 2...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+ERROR:root:LLM 2 fallback failed: API error occurred: Status 400
+{"object":"error","message":"Invalid model: nvidia/nemotron-3-super-120b-a12b:free","type":"invalid_model","param":null,"code":"1500","raw_status_code":400}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 1 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 2 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:httpx:HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 400 Bad Request"
+WARNING:root:OpenRouter attempt 3 failed: Error code: 400 - {'error': {'message': 'mistral-small-latest is not a valid model ID', 'code': 400}, 'user_id': 'user_33JOveQTDfa8tzJHX8UiRsza1LT'}
+INFO:root:Falling back to LLM 2...
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 400 Bad Request"
+ERROR:root:LLM 2 fallback failed: API error occurred: Status 400
+{"object":"error","message":"Invalid model: nvidia/nemotron-3-super-120b-a12b:free","type":"invalid_model","param":null,"code":"1500","raw_status_code":400}
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://api.mistral.ai/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:root:Starting MACC application
+INFO:github.GithubRetry:Request POST /user/repos failed with 403: Forbidden
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application
+INFO:root:Starting MACC application

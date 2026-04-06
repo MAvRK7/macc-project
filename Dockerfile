@@ -6,8 +6,7 @@ WORKDIR /app
 # Install build dependencies + git for PyGithub
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    cmake \
-    g++ \
+    python3-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
 
@@ -16,6 +15,7 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir "setuptools<82.0.0" wheel \
     && pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
