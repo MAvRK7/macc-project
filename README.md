@@ -1,5 +1,8 @@
 # The Multi-Agent AI Code Collaborator (MACC)
 
+blob:https://gemini.google.com/e0376da2-3e37-488c-81c1-0a30b5259557<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/40593ac0-4ee6-4f37-a985-4c06d1a5aeb1" />
+
+
 ## Overview
 
 The Multi-Agent AI Code Collaborator (MACC) is a web application that leverages AI agents to generate, review, and refine Python code based on user-provided project specifications. Built with LangGraph and powered by Mistral's mistral-small-latest as the primary and OpenRouter’s qwen/qwen3-coder:free model as fallback, MACC uses a multi-agent workflow (Planner, Coder, Reviewer) to break down specifications into tasks, generate code, and incorporate user suggestions. The generated code is pushed to a specified GitHub repository.
