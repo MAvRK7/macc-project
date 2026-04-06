@@ -21,7 +21,7 @@ The Multi-Agent AI Code Collaborator (MACC) is a web application that leverages 
 
 MACC is deployed as two components:
 
-- Backend: A FastAPI server (main.py) on Render at https://macc-project-n5v3.onrender.com .
+- Backend: A FastAPI server (main.py) on Render at https://macc-project-ubmb.onrender.com .
 - Frontend: A Streamlit app (frontend.py) on Streamlit Community Cloud at https://macc-project-mhyoeztobvzxbgslmpeu7v.streamlit.app .
 - GitHub Repository: A new repository according to the name of the project.
 
@@ -137,7 +137,7 @@ python -m streamlit run "frontend.py"
   - GITHUB_TOKEN: Your GitHub token.
   - MISTRAL_API_KEY: Your Mistral API key
 3.Deploy: Click “Manual Deploy” > “Deploy latest commit.”
-4. Verify: Check https://macc-project-n5v3.onrender.com (returns {"message": "MACC API running - all good"}) and /docs.
+4. Verify: Check https://macc-project-ubmb.onrender.com (or whatever it returns) (returns {"message": "MACC API running - all good"}) and /docs.
 
 ## Deploy to Streamlit Community Cloud (Frontend)
 
