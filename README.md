@@ -2,13 +2,15 @@
 
 ## Overview
 
-The Multi-Agent AI Code Collaborator (MACC) is a web application that leverages AI agents to generate, review, and refine Python code based on user-provided project specifications. Built with crewai==0.60.0 and powered by OpenRouter’s x-ai/grok-4-fast:free model, MACC uses a multi-agent workflow (Planner, Coder, Reviewer) to break down specifications into tasks, generate code, and incorporate user suggestions. The generated code is pushed to a specified GitHub repository.
+The Multi-Agent AI Code Collaborator (MACC) is a web application that leverages AI agents to generate, review, and refine Python code based on user-provided project specifications. Built with LangGraph and powered by Mistral's mistral-small-latest as the primary and OpenRouter’s qwen/qwen3-coder:free model as fallback, MACC uses a multi-agent workflow (Planner, Coder, Reviewer) to break down specifications into tasks, generate code, and incorporate user suggestions. The generated code is pushed to a specified GitHub repository.
 
 ## Features
 
 - Project Generation: Enter a project specification and GitHub repository to generate tasks and Python code.
 - Iterative Suggestions: Submit suggestions to refine generated code, with updates pushed to GitHub.
+- Dynamic Suggestions: The model automatically gives suggestions to improve the generated code.
 - Web Interface: Streamlit-based frontend for user input and output display.
+- Can show the model's thinking process. Enhanced transparency.
 - FastAPI Backend: Handles AI agent workflows and GitHub integration.
 - Free Deployment: Runs on Render (backend) and Streamlit Community Cloud (frontend) free tiers.
 
@@ -25,27 +27,52 @@ MACC is deployed as two components:
 
 Dependencies: Listed in requirements.txt:
 
+Web frameworks:
+
 - fastapi==0.115.0
 - uvicorn==0.30.6
 - streamlit==1.39.0
-- crewai==0.60.0
-- crewai_tools==0.8.3
-- langchain-openai==0.1.25
-- embedchain==0.1.114
-- requests==2.32.3
-- pygithub==2.4.0
+
+Environmenral Variables:
+
 - python-dotenv==1.0.1
-- pylint==3.3.1
-- setuptools==75.1.0
-- pydantic==2.7.4
+
+LangGraph
+- langgraph>=0.2.0
+
+LLM clients
+
+- openai==1.58.0
+- mistralai==1.5.0
+
+GitHub API
+
+- PyGithub==2.4.0
+
+HTTP requests (backend + frontend)
+
+- requests==2.32.3
+
+Pydantic for models / validation
+
+- pydantic==2.9.0
+
+CLI helpers
+
 - click==8.1.7
-- litellm==1.48.0
+
+Others
+
+- setuptools<82.0.0
+- wheel
 
 Environment Variables:
 
 - OPENROUTER_API_KEY: Obtain from OpenRouter.
 
 - GITHUB_TOKEN: A GitHub personal access token with repo scope.
+  
+- MISTRAL_API_KEY: Obtain from https://mistral.ai
 
 ## Setup Instructions
 
@@ -77,6 +104,7 @@ pip install -r requirements.txt
 ```
 OPENROUTER_API_KEY=your_openrouter_api_key
 GITHUB_TOKEN=your_github_token
+MISTRAL_API_KEY=your_mistral_api_key
 ```
 
 5. Run the Backend:
@@ -104,6 +132,7 @@ python -m streamlit run "frontend.py"
 - Environment Variables:
   - OPENROUTER_API_KEY: Your OpenRouter API key.
   - GITHUB_TOKEN: Your GitHub token.
+  - MISTRAL_API_KEY: Your Mistral API key
 3.Deploy: Click “Manual Deploy” > “Deploy latest commit.”
 4. Verify: Check https://macc-project-n5v3.onrender.com (returns {"message": "MACC API running - all good"}) and /docs.
 
@@ -118,11 +147,9 @@ python -m streamlit run "frontend.py"
 3. Set Secrets:
 - In “Edit Secrets,” add:
   ```
-  OPENROUTER_API_KEY="YOUR_OPENROUTER_API_KEY"
-  GITHUB_TOKEN="YOUR_GITHUB_PERSONAL_TOKEN"
   [api]
   BASE_URL = "https://macc-project-n5v3.onrender.com"
-
+  ```
 4. Deploy: Click “Deploy” or “Reboot.”
 5. Verify: Access at https://macc-project.streamlit.app.
 
@@ -149,21 +176,6 @@ python -m streamlit run "frontend.py"
   - Ping https://macc-project-n5v3.onrender.com to prevent Render free tier hibernation.
 
 - Check Streamlit logs: share.streamlit.io > Manage app > Logs.
-- CrewAI Issues:
-  - If CrewOutput errors occur, ensure crewai==0.60.0 and litellm==1.48.0 are installed.
-  - Test locally with:
-  ```
-  python test_crewai.py
-  ```
-
-- Memory Issues:
-  - Try crewai==0.55.0 in requirements.txt and redeploy:  
-    ```
-    sed -i '' 's/crewai==0.60.0/crewai==0.55.0/' requirements.txt
-    git add requirements.txt
-    git commit -m "Try crewai==0.55.0"
-    git push origin main
-    ```
 
 ## Known Limitations
 
@@ -185,7 +197,7 @@ This project is licensed under the MIT License.
 
 ## Acknowledgments
 
-- Powered by CrewAI and OpenRouter.
+- Powered by LangGrpah, Mistral and OpenRouter.
 - Deployed using Render and Streamlit Community Cloud.
 
 
