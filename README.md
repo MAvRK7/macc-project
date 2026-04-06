@@ -1,6 +1,6 @@
 # The Multi-Agent AI Code Collaborator (MACC)
 
-blob:https://gemini.google.com/e0376da2-3e37-488c-81c1-0a30b5259557<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/40593ac0-4ee6-4f37-a985-4c06d1a5aeb1" />
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/40593ac0-4ee6-4f37-a985-4c06d1a5aeb1" />
 
 
 ## Overview
