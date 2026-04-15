@@ -28,6 +28,8 @@ htmlcov/
 
 # 🧾 Logs
 *.log
+agent_logs.txt
+
 
 # 🧰 IDE / editor
 .vscode/
